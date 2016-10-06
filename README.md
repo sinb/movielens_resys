@@ -1,0 +1,1 @@
+Recipe for building recommender system for movielens dataset, code take from [https://www.packtpub.com/books/content/recommending-movies-scale-python](https://www.packtpub.com/books/content/recommending-movies-scale-python) 
