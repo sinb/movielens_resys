@@ -143,16 +143,26 @@ class MovieLens(object):
             )
         return reviews
 
-    def euclidean_distance(self, criticA, criticB):
+    def euclidean_distance(self, criticA, criticB, prefs='users'):
         """
         Reports the Euclidean distance of two critics, A&B by
         performing a J-dimensional Euclidean calculation of
         each of their preference vectors for the intersection
         of movies the critics have rated.
+        if prefs='users', this function return the distance
+        between two users by using all shared movies' ratings
+        as vector space.
+        if prefs='movies', this function return the distance
+        between two movies by using all shared users' ratings
+        as vector space.
         """
         # Get the intersection of the rated titles in the data.
-        preferences = self.shared_preferences(criticA, criticB)
-    
+        if prefs not in ['users', 'movies']:
+            raise KeyError("Unknown type of preference, '%s'." % prefs)
+        if prefs == 'users':
+            preferences = self.shared_preferences(criticA, criticB)
+        else:
+            preferences = self.shared_critics(criticA, criticB)
         # If they have no rankings in common, return 0.
         if len(preferences) == 0: return 0
         
@@ -164,7 +174,7 @@ class MovieLens(object):
         # division by zero errors and normalize ranks in [0, 1]
         return 1 / (1 + sqrt(sum_of_squares))
 
-    def pearson_correlation(self, criticA, criticB):
+    def pearson_correlation(self, criticA, criticB, prefs='users'):
         """
         Returns the Pearson Correlation of two critics, A and B by
         performing the PPMC calculation on the scatter plot of (a, b)
@@ -172,8 +182,12 @@ class MovieLens(object):
         """
         
         # Get the set of mutually rated items
-        preferences = self.shared_preferences(criticA, criticB)
-        
+        if prefs not in ['users', 'movies']:
+            raise KeyError("Unknown type of preference, '%s'." % prefs)
+        if prefs == 'users':
+            preferences = self.shared_preferences(criticA, criticB)
+        else:
+            preferences = self.shared_critics(criticA, criticB)
         # Store the length to save traversals of the len computation.
         # If they have no rankings in common, return 0.
         length = len(preferences)
@@ -308,4 +322,28 @@ class MovieLens(object):
         if n:
             return heapq.nlargest(n, items.items(), key=itemgetter(1))
         return items
+
+    def predict_ranking_item_based(self, user, movie, metric='euclidean'):
+        """
+        if user has already rated this movie, just return it's previous rating.
+        :param user:
+        :param movie:
+        :param metric:
+        :return:
+        """
+        if self.reviews[user].get(movie) is not None:
+            return self.reviews[user][movie]['rating']
+        # this cold be cached todo
+        movies = self.similar_items(movie, metric=metric)
+        total = 0.0
+        simsum = 0.0
+
+        for relmovie, similarity in movies.items():
+            if relmovie in self.reviews[user]:
+                total += similarity * self.reviews[user][relmovie]['rating']
+                simsum += similarity
+
+        if simsum == 0.0:
+            return 0.0
+        return total / simsum
 

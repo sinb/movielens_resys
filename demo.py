@@ -39,11 +39,12 @@ def print_user_rated_topn_movie(model, uid, n=10):
         
 if __name__ == '__main__':
     model = MovieLens(udata=UDATA, uitem=UITEM)
-    uid = 1
-    topn = 100
-    a = model.predict_all_rankings(user=uid, metric='pearson', n=topn)
-    print_top_rated_movie(model=model, topn=a)
-    print
-    print_user_rated_topn_movie(model, uid=uid, n=topn)
-    
-    
+    # uid = 1
+    # topn = 100
+    # a = model.predict_all_rankings(user=uid, metric='pearson', n=topn)
+    # print_top_rated_movie(model=model, topn=a)
+    # print
+    # print_user_rated_topn_movie(model, uid=uid, n=topn)
+    # for movie, similarity in model.similar_items(631, 'pearson').items():
+    #     print "%0.3f: %s" % (similarity, model.movies[movie]['title'])
+    print model.predict_ranking_item_based(1, 21)
