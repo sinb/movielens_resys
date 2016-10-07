@@ -262,3 +262,50 @@ class MovieLens(object):
         if n:
             return heapq.nlargest(n, movies.items(), key=itemgetter(1))
         return movies    
+
+    def shared_critics(self, movieA, movieB):
+        """
+        Returns the intersection of critics for two items, A and B
+        """
+
+        if movieA not in self.movies:
+            raise KeyError("Couldn't find movie '%s' in data" %movieA)
+        if movieB not in self.movies:
+            raise KeyError("Couldn't find movie '%s' in data" %movieB)
+
+        criticsA = set(critic for critic in self.reviews if movieA in self.reviews[critic])
+        criticsB = set(critic for critic in self.reviews if movieB in self.reviews[critic])
+        shared = criticsA & criticsB # Intersection operator
+         # Create the reviews dictionary to return
+        reviews = {}
+        for critic in shared:
+            reviews[critic] = (
+                self.reviews[critic][movieA]['rating'],
+                self.reviews[critic][movieB]['rating'],
+            )
+        return reviews
+
+    def similar_items(self, movie, metric='euclidean', n=None):
+        # Metric jump table
+        metrics = {
+            'euclidean': self.euclidean_distance,
+            'pearson': self.pearson_correlation,
+        }
+
+        distance = metrics.get(metric, None)
+        # Handle problems that might occur
+        if movie not in self.reviews:
+            raise KeyError("Unknown movie, '%s'." % movie)
+        if not distance or not callable(distance):
+            raise KeyError("Unknown or unprogrammed distance metric '%s'." % metric)
+
+        items = {}
+        for item in self.movies:
+            if item == movie:
+                continue
+            items[item] = distance(item, movie, prefs='movies')
+
+        if n:
+            return heapq.nlargest(n, items.items(), key=itemgetter(1))
+        return items
+

@@ -9,8 +9,8 @@ from sklearn.cluster import KMeans
 import numpy as np
 
 
-UDATA = r'/home/sinb/Programming/python/spark_python/ml-100k/u.data'
-UITEM = r'/home/sinb/Programming/python/spark_python/ml-100k/u.item'
+UDATA = r'/home/sss/Programmings/python/movielens_resys/ml-100k/u.data'
+UITEM = r'/home/sss/Programmings/python/movielens_resys/ml-100k/u.item'
 
 def kmeans_movielens(model):
     movie_genre = [map(int, movie_info['genre']) for movie_info in model.movies.values()]
