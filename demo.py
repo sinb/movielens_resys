@@ -43,7 +43,7 @@ if __name__ == '__main__':
     model.load_similar_score_dict(SIMILAR_SCORE_CACHE)
     
     uid = 1
-    topn = 10
+    topn = 100
     a = model.predict_all_rankings(user=uid, metric='pearson', n=topn)
     print_top_rated_movie(model=model, topn=a)
     print
