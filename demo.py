@@ -1,16 +1,17 @@
+# coding=utf-8 
 '''
 Created on Oct 6, 2016
 
 @author: sinb
 '''
-import movielens_model
 from movielens_model import MovieLens
 from sklearn.cluster import KMeans
 import numpy as np
 
 
-UDATA = r'/home/sss/Programmings/python/movielens_resys/ml-100k/u.data'
-UITEM = r'/home/sss/Programmings/python/movielens_resys/ml-100k/u.item'
+UDATA = r'/home/sinb/Programming/python/spark_python/ml-100k/u.data'
+UITEM = r'/home/sinb/Programming/python/spark_python/ml-100k/u.item'
+SIMILAR_SCORE_CACHE = r'/home/sinb/similar_score.pkl'
 
 def kmeans_movielens(model):
     movie_genre = [map(int, movie_info['genre']) for movie_info in model.movies.values()]
@@ -30,7 +31,7 @@ def print_title_from_cluster(movie_info, labels, tag):
 
 def print_top_rated_movie(model, topn):
     for id, rating in topn:
-        print model.movies[id]['title']    
+        print model.movies[id]['title'], rating  
 
 def print_user_rated_topn_movie(model, uid, n=10):
     lst = sorted(model.reviews[uid].values(), key=lambda x: x['rating'], reverse=True)
@@ -39,12 +40,16 @@ def print_user_rated_topn_movie(model, uid, n=10):
         
 if __name__ == '__main__':
     model = MovieLens(udata=UDATA, uitem=UITEM)
-    # uid = 1
-    # topn = 100
-    # a = model.predict_all_rankings(user=uid, metric='pearson', n=topn)
-    # print_top_rated_movie(model=model, topn=a)
-    # print
-    # print_user_rated_topn_movie(model, uid=uid, n=topn)
-    # for movie, similarity in model.similar_items(631, 'pearson').items():
-    #     print "%0.3f: %s" % (similarity, model.movies[movie]['title'])
-    print model.predict_ranking_item_based(1, 21)
+    model.load_similar_score_dict(SIMILAR_SCORE_CACHE)
+    
+    uid = 1
+    topn = 10
+    a = model.predict_all_rankings(user=uid, metric='pearson', n=topn)
+    print_top_rated_movie(model=model, topn=a)
+    print
+    print_user_rated_topn_movie(model, uid=uid, n=topn)
+    print
+    b = model.predict_all_rankings_item_based(user=uid, metric='pearson', n=topn)
+    print_top_rated_movie(model=model, topn=b)
+    
+    

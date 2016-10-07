@@ -1,3 +1,10 @@
+# coding=utf-8 
+
+'''
+Created on Oct 6, 2016
+
+@author: sinb
+'''
 import os
 import csv
 from datetime import datetime
@@ -5,7 +12,8 @@ from collections import defaultdict
 import heapq
 from operator import itemgetter
 from math import sqrt
-
+import cPickle as pickle
+import logging
 
 def load_reviews(path, **kwargs):
     """
@@ -262,16 +270,24 @@ class MovieLens(object):
         if simsum == 0.0: return 0.0
         return total / simsum
     
-    def predict_all_rankings(self, user, metric='euclidean', n=None):
+    def predict_all_rankings(self, user, metric='euclidean', n=None, recommend=True):
         """
         Predicts all rankings for all movies, if n is
         specified returns
         the top n movies and their predicted ranking.
+        对一个用户,估计他对所有影片的评分, 方法是先找到他与所有用户的相似度,存放在critics里;
+        然后对每个电影, 在所有的(相似)用户里, 累计similar_score*rating,最后除以总的total_similar_score,
+        也就是考虑所有用户,看这些用户对当前这部影片评分多岁,然后看这些用户和自己的用户相似度是多少,
+        求个加权的分数. 
         """
         critics = self.similar_critics(user, metric=metric)
         movies = {
            movie: self.predict_ranking(user, movie, metric, critics) for movie in self.movies
         }
+        if recommend:
+            for movie in movies.keys():
+                if movie in self.reviews[user]:
+                    _ = movies.pop(movie)
         
         if n:
             return heapq.nlargest(n, movies.items(), key=itemgetter(1))
@@ -290,7 +306,7 @@ class MovieLens(object):
         criticsA = set(critic for critic in self.reviews if movieA in self.reviews[critic])
         criticsB = set(critic for critic in self.reviews if movieB in self.reviews[critic])
         shared = criticsA & criticsB # Intersection operator
-         # Create the reviews dictionary to return
+        # Create the reviews dictionary to return
         reviews = {}
         for critic in shared:
             reviews[critic] = (
@@ -308,7 +324,7 @@ class MovieLens(object):
 
         distance = metrics.get(metric, None)
         # Handle problems that might occur
-        if movie not in self.reviews:
+        if movie not in self.movies:
             raise KeyError("Unknown movie, '%s'." % movie)
         if not distance or not callable(distance):
             raise KeyError("Unknown or unprogrammed distance metric '%s'." % metric)
@@ -333,8 +349,11 @@ class MovieLens(object):
         """
         if self.reviews[user].get(movie) is not None:
             return self.reviews[user][movie]['rating']
-        # this cold be cached todo
-        movies = self.similar_items(movie, metric=metric)
+        # cache
+        if self.item_similar_score is not None:
+            movies = self.item_similar_score[movie]
+        else:
+            movies = self.similar_items(movie, metric=metric)
         total = 0.0
         simsum = 0.0
 
@@ -346,4 +365,53 @@ class MovieLens(object):
         if simsum == 0.0:
             return 0.0
         return total / simsum
-
+    
+    def predict_all_rankings_item_based(self, user, metric='pearson', n=10, recommend=True):
+        """
+        recommend top n best predicted items for an user
+        this function need a pre-computed dict, which stores
+        every related items and their similarity score
+        使用item based CF推荐影片(也就是对一个用户,估计他对所有影片的评分,
+        如果他本来就评价过某个影片,那么就直接使用他的评分(但是推荐的时候要把已经评分过的去掉))
+        对所有的影片, 如果这个user以前看过它,那么累计其rating*similar_score,最后加权.
+        如果是recommend=True,那么推荐列表中不应该出现用户已经看过的电影
+        """
+        movies = {
+           movie: self.predict_ranking_item_based(user, movie, metric) for movie in self.movies
+        }
+        if recommend:
+            for movie in movies.keys():
+                if movie in self.reviews[user]:
+                    _ = movies.pop(movie)
+        if n:
+            return heapq.nlargest(n, movies.items(), key=itemgetter(1))
+        return movies    
+    
+    def get_similar_score_dict(self, metric='pearson', cache=True):
+        """
+        compute every pair's similar score based on similar_items
+        """
+        self.item_similar_score = {}
+        total_count = len(self.movies)
+        count = 0
+        perc = 0.05
+        for movie_id in self.movies.keys():
+            count += 1
+            if count / float(total_count) > perc:
+                print("%.2f in progress" % perc)
+                perc += 0.05
+            self.item_similar_score[movie_id] = self.similar_items(movie=movie_id, metric=metric)
+        print("compute item similarity score finished")
+        if cache:
+            with open("similar_score.pkl", "wb") as f:
+                pickle.dump(self.item_similar_score, f)
+            print "cached!"
+    
+    def load_similar_score_dict(self, filename):
+        with open(filename, "rb") as f:
+            tmp = pickle.load(f)
+            self.item_similar_score = tmp 
+        print("load similar score from %s" % filename)
+            
+            
+            
